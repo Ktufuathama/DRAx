@@ -189,8 +189,8 @@ class DRAx : Logging
   hidden [int]$hPort = 8755
   hidden [int]$hLogLevel
   hidden [consolecolor]$PromptHeader   = [consolecolor]::DarkYellow
- 	hidden [consolecolor]$SectionHeader  = [consolecolor]::Gray
- 	hidden [consolecolor]$SectionContent = [consolecolor]::DarkGray
+   hidden [consolecolor]$SectionHeader  = [consolecolor]::Gray
+   hidden [consolecolor]$SectionContent = [consolecolor]::DarkGray
 
   DRAx()
   {
@@ -276,146 +276,146 @@ class DRAx : Logging
 
   ##### Interaction Section #####
 
-	[object] EnterConsole()
-	{
-		do {
-			[console]::clear()
-			$R0 = $this.console(@{"Select Category" = @(
-				"1: Quick Actions",
-				"2: Computer(s)",
-				"3: Distro(s)/Group(s)",
-				"4: User(s)/OrgAcct(s)",
-				"0: Return"
-			)}, "`n== DRAx Console ==`n", "`nDRAx > ")
-			switch -regex ($R0) {
-				"^0$" {
-				  return ""
-				}
-				"^\?$|^[Hh](elp)*$" {
-					#ToDo: DisplayHelp
-					continue
-				}
-				"^1$" {
-					$R1 = $this.console(@{"Options" = @()}, $null, "`nDRAx [QuickAction] > ")
-				}
-				"^2|^[Cc]omputer(?:s*)$" {
-					$R1 = $this.console(@{"Options" = @(
-						"1: Create`tCreate AFNet Computer",
-						"2: Restore`tRecreate Computer",
-						"3: Delete`tMove Computer to recycling bin",
-						"4: Disable`tDisable Computer",
-						"5: Enable`tEnable Computer",
-						"6: Get`tGet properties for Computer",
-						"7: Edit`tEdit properties for Computer",
-						"0: Return"
-					)}, $null, "`nDRAx [Computer] > ")
-				}
-				"^3$" {
-					$R1 = $this.console(@{"Options" = @(
-						"1: Create Group",
-						"2: Get Group",
-						"3: Edit Group",
-						"3: Get Group Member(s)",
-						"4: Set Group Member(s)",
-						"5: Get Distro Manager",
-						"6: Set Distro Manager",
-						"7: Get Distro Member(s)",
-						"8: Set Distro Member(s)",
-						"0: Return"
-					)}, $null, "`nDRAx [Group|Distro] > ")
-				}
-				"^4$" {
-					$R1 = $this.console(@{"Options" = @(
-						"1: Create User",
-						"2: Delete User",
-						"3: Get User properties",
-						"4: Edit User properties",
-						"5: Enable User",
-						"6: Disable User",
-						"7: Mirror Users",
-						"0: Return"
-					)}, $null, "`nDRAx [User] > ")
-					switch -regex ($R1) {
-						"^0$" { break }
-						"^1$" {
-							[console]::writeLine("<NotImplimented>")
-						}
-						"^2$" {
-							[console]::writeLine("<NotImplimented>")
-						}
-						"^3$" {
-							return $this.getUserProperties($this.iFind("User", $null))
-						}
-						"^4$" {}
-						"^5$" {}
-						"^6$" {}
-						"^7$" {}
-					}
-				}
-				"[G|g]et [U|u]ser (?<a>.*)" {
-					$r1 = $this.iFind('User', $matches.a.toString())
-				}
-				"[G|g]et [C|c]omputer (?<a>.*)" {
-					$r1 = $this.iFind('Computer', $matches.a.toString())
-				}
-				"[G|g]et\s[D|d]istro\s(?<D>\S*)" {
-					$DistroManager = $this.getDistroManager($this.iFind("Group", $matches.D))
-				}
-				"[N|n]ew [C|c]omputer (?<a>.*)" {
-					
-				}
-			}
-			[console]::readKey()
-		}
-		while ($true)
-		return ""
-	}
+  [object] EnterConsole()
+  {
+    do {
+      [console]::clear()
+      $R0 = $this.console(@{"Select Category" = @(
+        "1: Quick Actions",
+        "2: Computer(s)",
+        "3: Distro(s)/Group(s)",
+        "4: User(s)/OrgAcct(s)",
+        "0: Return"
+      )}, "`n== DRAx Console ==`n", "`nDRAx > ")
+      switch -regex ($R0) {
+        "^0$" {
+          return ""
+        }
+        "^\?$|^[Hh](elp)*$" {
+          #ToDo: DisplayHelp
+          continue
+        }
+        "^1$" {
+          $R1 = $this.console(@{"Options" = @()}, $null, "`nDRAx [QuickAction] > ")
+        }
+        "^2|^[Cc]omputer(?:s*)$" {
+          $R1 = $this.console(@{"Options" = @(
+            "1: Create`tCreate AFNet Computer",
+            "2: Restore`tRecreate Computer",
+            "3: Delete`tMove Computer to recycling bin",
+            "4: Disable`tDisable Computer",
+            "5: Enable`tEnable Computer",
+            "6: Get`tGet properties for Computer",
+            "7: Edit`tEdit properties for Computer",
+            "0: Return"
+          )}, $null, "`nDRAx [Computer] > ")
+        }
+        "^3$" {
+          $R1 = $this.console(@{"Options" = @(
+            "1: Create Group",
+            "2: Get Group",
+            "3: Edit Group",
+            "3: Get Group Member(s)",
+            "4: Set Group Member(s)",
+            "5: Get Distro Manager",
+            "6: Set Distro Manager",
+            "7: Get Distro Member(s)",
+            "8: Set Distro Member(s)",
+            "0: Return"
+          )}, $null, "`nDRAx [Group|Distro] > ")
+        }
+        "^4$" {
+          $R1 = $this.console(@{"Options" = @(
+            "1: Create User",
+            "2: Delete User",
+            "3: Get User properties",
+            "4: Edit User properties",
+            "5: Enable User",
+            "6: Disable User",
+            "7: Mirror Users",
+            "0: Return"
+          )}, $null, "`nDRAx [User] > ")
+          switch -regex ($R1) {
+            "^0$" { break }
+            "^1$" {
+              [console]::writeLine("<NotImplimented>")
+            }
+            "^2$" {
+              [console]::writeLine("<NotImplimented>")
+            }
+            "^3$" {
+              return $this.getUserProperties($this.iFind("User", $null))
+            }
+            "^4$" {}
+            "^5$" {}
+            "^6$" {}
+            "^7$" {}
+          }
+        }
+        "[G|g]et [U|u]ser (?<a>.*)" {
+          $r1 = $this.iFind('User', $matches.a.toString())
+        }
+        "[G|g]et [C|c]omputer (?<a>.*)" {
+          $r1 = $this.iFind('Computer', $matches.a.toString())
+        }
+        "[G|g]et\s[D|d]istro\s(?<D>\S*)" {
+          $DistroManager = $this.getDistroManager($this.iFind("Group", $matches.D))
+        }
+        "[N|n]ew [C|c]omputer (?<a>.*)" {
+          
+        }
+      }
+      [console]::readKey()
+    }
+    while ($true)
+    return ""
+  }
 
-	hidden [string] Console([hashtable]$inputObject, [string]$header, [string]$prompt)
-	{
-		try {
-			if (![string]::isNullOrWhiteSpace($header)) {
-				[console]::writeLine($header)
-			}
-			if ($inputObject) {
-				foreach ($Item in $inputObject.getEnumerator()) {
-					[console]::ForegroundColor = $this.SectionHeader
-					[console]::writeLine("  $($Item.Key)")
-					if ($Item.Value -is [hashtable]) {
-						[console]::ForegroundColor = $this.SectionContent
-						foreach ($InnerItem in $Item.Value.getEnumerator()) {
-							[console]::writeLine("    $($InnerItem.Key)`n      $($InnerItem.Value)")
-						}
-					}
-					elseif ($Item.Value.Count -gt 1) {
-						[console]::ForegroundColor = $this.SectionContent
-						for ($i = 0; $i -lt $Item.Value.Count; $i++) {
-							[console]::writeLine("    $($Item.Value[$i])")
-						}
-					}
-					else {
-						[console]::ForegroundColor = $this.SectionContent
-						[console]::writeLine("    $($Item.Value)")
-					}
-				}
-			}
-			[console]::resetColor()
-			if (![string]::isNullOrEmpty($prompt)) {
-				[console]::ForegroundColor = $this.PromptHeader
-				$prompt = switch ($prompt) {
-					default { $prompt }
-				}
-				[console]::write($prompt)
-			}
-		}
-		catch {
-			#throw $_
-		}
-		finally {
-			[console]::resetColor()
-		}
-		return [console]::readline()
-	}
+  hidden [string] Console([hashtable]$inputObject, [string]$header, [string]$prompt)
+  {
+    try {
+      if (![string]::isNullOrWhiteSpace($header)) {
+        [console]::writeLine($header)
+      }
+      if ($inputObject) {
+        foreach ($Item in $inputObject.getEnumerator()) {
+          [console]::ForegroundColor = $this.SectionHeader
+          [console]::writeLine("  $($Item.Key)")
+          if ($Item.Value -is [hashtable]) {
+            [console]::ForegroundColor = $this.SectionContent
+            foreach ($InnerItem in $Item.Value.getEnumerator()) {
+              [console]::writeLine("    $($InnerItem.Key)`n      $($InnerItem.Value)")
+            }
+          }
+          elseif ($Item.Value.Count -gt 1) {
+            [console]::ForegroundColor = $this.SectionContent
+            for ($i = 0; $i -lt $Item.Value.Count; $i++) {
+              [console]::writeLine("    $($Item.Value[$i])")
+            }
+          }
+          else {
+            [console]::ForegroundColor = $this.SectionContent
+            [console]::writeLine("    $($Item.Value)")
+          }
+        }
+      }
+      [console]::resetColor()
+      if (![string]::isNullOrEmpty($prompt)) {
+        [console]::ForegroundColor = $this.PromptHeader
+        $prompt = switch ($prompt) {
+          default { $prompt }
+        }
+        [console]::write($prompt)
+      }
+    }
+    catch {
+      #throw $_
+    }
+    finally {
+      [console]::resetColor()
+    }
+    return [console]::readline()
+  }
 
   hidden [string] IConsole([hashtable]$inputObject, [string]$prompt, [bool]$space)
   {
@@ -619,19 +619,146 @@ class DRAx : Logging
     }
     return $Object
   }
+
   #$DRAx.IConsole(@{'Group' = $ACL.Access.IdentityReference.Value}, "Enter Group > ", $true)
 
   ##### File Permissions #####
+  <#
+    ToDo:
+      Show directory information w/ File Permissions and Groups mushed?
+
+    Commands:
+      Test if user/group has access to any children in directory.
+        * $FSE = $this.getFileSystemEntries($path)
+          $FSE.foreach({ if ($this.testAccess($path, $user) { $this.getPermissions($path, $user) })})
+  #>
 
   [object] GetPermissions([string]$path)
   {
-    $DirectorySecurity = [directorysecurity]::new($path, [accesscontrolsections]::All)
-    return $DirectorySecurity
+    return $this.getPermissions($path, 'All')
   }
 
-  [object] SetPermissions()
+  [object] GetPermissions([string]$path, [string]$identifier)
   {
-    return $null #ToDo
+    return [directorysecurity]::new($path, 'Access').Access.where({
+      $_.IdentityReference.Value -match "^.*\\$($identifier)`$|^$($identifier.replace('\','\\'))`$"
+    })
+  }
+ 
+  [object] GetPermissions([string]$path, [accesscontrolsections]$section)
+  {
+    return [directorysecurity]::new($path, $section)
+  }
+
+  [object] SetPermissions([string]$path)
+  {
+    return $false
+  }
+
+  [bool] GrantAccess([string]$path, [string]$identifier)
+  {
+    return $false
+  }
+
+  [bool] DenyAccess([string]$path, [string]$identifier)
+  {
+    return $false
+  }
+
+  [bool] TestAccess([string]$path, [string]$identifier)
+  {
+    if (!$this.getPermissions($path, $identifier)) {
+      return $false
+    }
+    return $true
+  }
+
+  [bool] TestVerticalAccess([string]$path, [string]$identifier)
+  {
+    $Directories = $this.getAncestors($path)
+    if (!$Directories) {
+      return $false
+    }
+    foreach ($directory in $Directories) {
+      if (!$this.testAccess($directory, $identifier)) {
+        return $false
+      }
+    }
+    return $true
+  }
+
+  [bool] TestVerticalAccess2([string]$path, [string]$identifier)
+  {
+    $this.getAncestors($path).foreach({
+      if (!$this.testAccess($_, $identifier)) {
+        return $false
+      }
+    })
+    return $true
+  }
+
+  [object[]] TestHorizontalAccess([string]$path, [string]$identifier)
+  {
+    $Object = [object]::new()
+    $this.getFileSystemEntries($path).foreach({
+      $this.toDbg("$_", "TestHorizontalAccess")
+      $this.toDbg("$($_.FullName) - $identifier", "TestHorizontalAccess")
+      if (!$this.testAccess($_.FullName, $identifier)) {
+        $this.toDbg("NoAccess", "TestHorizontalAccess")
+        $Object += "" | Select-Object @{n="Access";e={ @{"$($_.Name)" = $false} }}
+      }
+      else {
+        $this.toDbg("HasAccess", "TestHorizontalAccess")
+        $Object += "" | Select-Object @{n="Access";e={ @{"$($_.Name)" = $this.getPermissions($_.FullName, $identifier)} }}
+      }
+    })
+    return $Object
+  }
+
+  [system.io.directoryinfo[]] GetFileSystemEntries([string]$path)
+  {
+    return [system.io.directoryinfo[]][system.io.directory]::GetFileSystemEntries($path)
+  }
+
+  [object] GetAncestors([string]$path)
+  {
+    if (![system.io.directory]::exists($path)) {
+      return $null
+    }
+    $Item = [system.io.directoryinfo]$path
+    $Inner = $Item.FullName.trim('\')
+    $Stack = [system.collections.stack]::new()
+    do {
+      $Stack.push($Inner)
+      $Inner = $this.getParent($Inner)
+    }
+    until ($Stack.contains($Item.Root.FullName))
+    return $Stack.toArray()
+  }
+
+  hidden [object] GetParent([string]$path)
+  {
+    return ([system.io.directoryinfo]$path).Parent.FullName
+  }
+
+  [string] ConvertIdentifier([string]$inputString)
+  {
+    try {
+      switch -regex ($inputString) {
+        '^S-1-[0-5](-\S+)*$' {
+          return ([system.security.principal.securityidentifier]$inputString).translate([system.security.principal.ntaccount]).Value
+        }
+        default {
+          return ([system.security.principal.ntaccount]$inputString).translate([system.security.principal.securityidentifier]).Value
+        }
+      }
+      $this.toErr("$_", "ConvertIdentifier")
+      return 'S-1-0-0'
+    }
+    catch {
+      $this.toErr("$_", "ConvertIdentifier")
+      return 'S-1-0-0'
+    }
   }
 
   ##### Distribution Object(s) #####
@@ -838,7 +965,7 @@ class DRAx : Logging
       return $null
     }
     return $Object
-	}
+  }
 
   [object] SetUser([string]$distinguishedName, [hashtable]$properties)
   {
