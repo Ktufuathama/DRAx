@@ -1,1 +1,49 @@
-
+{
+  "Domain":  "region.company",
+  "Servers": [
+    { "Server":  "site-ra-002", "Priority":  3, "Location":  "Site Seattle" },
+    { "Server":  "site-ra-001", "Priority":  1, "Location":  "Site New York" }
+  ],
+  "Containers": {
+    "Default":    "OU=users,DC=region,DC=company",
+    "User":       "OU=users,DC=region,DC=company",
+    "Group":      "OU=groups,DC=region,DC=company",
+    "Computer":   "OU=computers,DC=region,DC=company",
+    "AdminUser":  "OU=administrative accounts,OU=administration,DC=region,DC=company",
+    "AdminGroup": "OU=administrative groups,OU=administration,DC=region,DC=company"
+  },
+  "Attributes": [
+    {
+      "DistroGroupCommon": [
+        "ManagedBy",
+        "ManagedByFlag",
+        "Members",
+        "sAMAccountName",
+        "ManagerCanUpdateMembers",
+        "AdditionalManagers",
+        "EmailAddress",
+        "ExtensionAttribute1",
+        "ExtensionAttribute2",
+        "ExtensionAttribute3",
+        "ExtensionAttribute4",
+        "ExtensionAttribute5",
+        "ExtensionAttribute6",
+        "ExtensionAttribute7",
+        "ExtensionAttribute8",
+        "ExtensionAttribute9",
+        "ExtensionAttribute10",
+        "ExtensionAttribute11",
+        "ExtensionAttribute12",
+        "ExtensionAttribute13",
+        "ExtensionAttribute14",
+        "ExtensionAttribute15",
+        "AcceptMessagesFrom",
+        "RejectMessagesFrom",
+        "AcceptMessagesFromGroups",
+        "RejectMessagesFromGroups",
+        "DisplayName",
+        "DistinguishedName"
+      ]
+    }
+  ]
+}
