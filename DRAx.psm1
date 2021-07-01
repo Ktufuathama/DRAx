@@ -699,7 +699,7 @@ class DRAx : Logging
 
   [object[]] TestHorizontalAccess([string]$path, [string]$identifier)
   {
-    $Object = [object]::new()
+    $Object = [system.collections.arraylist]::new()
     $this.getFileSystemEntries($path).foreach({
       $this.toDbg("$_", "TestHorizontalAccess")
       $this.toDbg("$($_.FullName) - $identifier", "TestHorizontalAccess")
@@ -726,9 +726,10 @@ class DRAx : Logging
       return $null
     }
     $Item = [system.io.directoryinfo]$path
-    $Inner = $Item.FullName.trim('\')
+    $Inner = $Item.FullName.trimEnd('\')
     $Stack = [system.collections.stack]::new()
     do {
+      $this.toDbg($Inner, 'GetAncestors')
       $Stack.push($Inner)
       $Inner = $this.getParent($Inner)
     }
