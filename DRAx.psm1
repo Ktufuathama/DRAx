@@ -41,6 +41,13 @@ enum LogLevel
   DBG = 3
 }
 
+enum OrgBoxAction
+{
+  FullAccess
+  SendAs
+  SendOnBehalf
+}
+
 class Logging : System.IDisposable
 {
   [loglevel]$LogLevel = [loglevel]::DBG
