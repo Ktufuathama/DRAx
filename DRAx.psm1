@@ -3,7 +3,6 @@
   Dependencies:
     NetIQ DRA PowerShellExtensions.
   ToDo:
-   
     View properties of users, groups, and computers.
     Add version control and security measures.
 #>
@@ -39,13 +38,6 @@ enum LogLevel
   WRN = 1
   INF = 2
   DBG = 3
-}
-
-enum OrgBoxAction
-{
-  FullAccess
-  SendAs
-  SendOnBehalf
 }
 
 class Logging : System.IDisposable
@@ -192,12 +184,13 @@ class DRAx : Logging
   [object]$Containers
 
   hidden [string]$hDomain = $env:USERDNSDOMAIN
-  hidden [string]$hModule = 'C:\Program Files (x86)\NetIQ\DRA Extensions\modules\NetIQ.DRA.PowerShellExtensions'
+  hidden [string]$hModulePath = 'C:\Program Files (x86)\NetIQ\DRA Extensions\modules\NetIQ.DRA.PowerShellExtensions'
+  hidden [string]$hModuleName = 'NetIQ.DRA.PowerShellExtensions'
   hidden [int]$hPort = 8755
   hidden [int]$hLogLevel
   hidden [consolecolor]$PromptHeader   = [consolecolor]::DarkYellow
-   hidden [consolecolor]$SectionHeader  = [consolecolor]::Gray
-   hidden [consolecolor]$SectionContent = [consolecolor]::DarkGray
+  hidden [consolecolor]$SectionHeader  = [consolecolor]::Gray
+  hidden [consolecolor]$SectionContent = [consolecolor]::DarkGray
 
   DRAx()
   {
@@ -206,28 +199,46 @@ class DRAx : Logging
 
   [drax] Initialize()
   {
-    if (!$this.import("$($PsScriptRoot)\DRAx.json")) {
-      throw "Failed to Initialize"
+    try {
+      return $this.initialize($null, $null, $true)
     }
-    return $this.initialize($this.hModule, $true)
+    catch {
+      throw $_
+    }
   }
 
-  [drax] Initialize([string]$configPath)
-  {
-    if (!$this.import($configPath)) {
-      throw "Failed to Initialize"
-    }
-    return $this.initialize($this.hModule, $true)
-  }
-
-  [drax] Initialize([string]$modulePath, [bool]$findOptimalServer)
+  [drax] Initialize2()
   {
     try {
-      if ($modulePath -eq [string]::isNullOrEmpty -or !$modulePath) {
-        Import-Module -name $this.hModule -errorAction 'Stop'
+      return $this.initialize('C:\_\Projects\DRAx\DRAx_v3\DRAx.json', $null, $true)
+    }
+    catch {
+      throw $_
+    }
+  }
+
+  [drax] Initialize([string]$configPath, [string]$modulePath, [bool]$findOptimalServer)
+  {
+    try {
+      #$modulePath -ne [string]::isNullOrEmpty
+      if ($modulePath) {
+        Import-Module -name $modulePath -errorAction 'Stop'
       }
       else {
-        Import-Module -name $modulePath -errorAction 'Stop'
+        if (!(Get-Module -name 'NetIQ.DRA.PowerShellExtensions' -listAvailable)) {
+          throw "Failed to import module > $($this.hModuleName)"
+        }
+        Import-Module -name 'NetIQ.DRA.PowerShellExtensions' -errorAction 'Stop'
+      }
+      if ($configPath) {
+        if (!$this.import($configPath)) {
+          throw "Failed to import `"$($configPath)`""
+        }
+      }
+      else {
+        if (!$this.import("$($PsScriptRoot)\DRAx.json")) {
+          throw "Failed to import `"$($PsScriptRoot)\DRAx.json`""
+        }
       }
       if ($findOptimalServer) {
         $this.Server = $this.findServer()
@@ -487,6 +498,13 @@ class DRAx : Logging
       $search.split(',').foreach({ $Queue.enqueue($_) })
       while ($Queue.Count -ne 0) {
         $search = $Queue.dequeue()
+        if ($search -match '^[Hh][Ee][Ll][Pp]|\?$') {
+          [console]::writeLine(" Search DRA for specified object(s) by parsed string and returns DistinguishedName(s).")
+          [console]::writeLine("  ',' Comma(s) is how you submit multiple search strings.                Ex: 'Doe.John, Doe.Jane'")
+          [console]::writeLine("  '>' Carat will search 'As Is' without wildcard or regex.               Ex: '>Doe.John.A.12345678'")
+          [console]::writeLine("  '*' Star will search by 'FriendlyName' instead of 'DistinguishedName'. Ex: '*Johnny Doe'")
+          break
+        }
         while ($true) {
           $Object = $this.findObject($class, $search)
           if (!$Object -or ($Object.Count -eq 0)) {
@@ -538,13 +556,13 @@ class DRAx : Logging
   }
 
   ##### Search Section #####
-  <#####################################################################################################
+  <#
     Search Section
       Search DRA for specified object(s) by parsed string and returns DistinguishedName(s).
       ',' Comma(s) is how you submit multiple search strings.                Ex: 'Doe.John, Doe.Jane'
       '>' Carat will search 'As Is' without wildcard or regex.               Ex: '>Doe.John.A.12345678'
       '*' Star will search by 'FriendlyName' instead of 'DistinguishedName'. Ex: '*Johnny Doe'
-  #####################################################################################################>
+  #>
   
   [string[]] FindObject([draxclass]$class, [string]$search)
   {
