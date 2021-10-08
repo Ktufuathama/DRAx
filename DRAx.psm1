@@ -5,13 +5,19 @@
   ToDo:
     View properties of users, groups, and computers.
     Add version control and security measures.
+  BUG!:
+    using namespace does not import correctly. Access control has to be full name.
 #>
 
 using namespace System.IO;
 using namespace System.Security.AccessControl;
 
-function Start-DRAx {
-  
+function New-DRAx {
+  param(
+    [string]$configPath
+  )
+  $DRAx = [drax]::new().initialize($configPath, $null, $true)
+  return $DRAx
 }
 
 enum DRAxAction
@@ -30,6 +36,13 @@ enum DRAxClass
   Group      = 3
   User       = 4
   Computer   = 5
+}
+
+enum DRAxEmailRights
+{
+  SendAs       = 0
+  SendOnBehalf = 1
+  FullAccess   = 2
 }
 
 enum LogLevel
@@ -182,6 +195,7 @@ class DRAx : Logging
   [string]$Server
   [object]$Servers
   [object]$Containers
+  [object]$Attributes
 
   hidden [string]$hDomain = $env:USERDNSDOMAIN
   hidden [string]$hModulePath = 'C:\Program Files (x86)\NetIQ\DRA Extensions\modules\NetIQ.DRA.PowerShellExtensions'
@@ -191,6 +205,9 @@ class DRAx : Logging
   hidden [consolecolor]$PromptHeader   = [consolecolor]::DarkYellow
   hidden [consolecolor]$SectionHeader  = [consolecolor]::Gray
   hidden [consolecolor]$SectionContent = [consolecolor]::DarkGray
+
+  hidden [system.collections.arraylist]$Permissions
+  hidden [system.collections.arraylist]$GroupedObjects
 
   DRAx()
   {
@@ -254,9 +271,10 @@ class DRAx : Logging
   {
     if ([system.io.file]::exists($path)) {
       $Config = [system.io.file]::readAllText($path) | ConvertFrom-Json
-      $this.Domain = $Config.Domain
+      $this.Attributes = $Config.Attributes
+      $this.Domain     = $Config.Domain
       $this.Containers = $Config.Containers
-      $this.Servers = $Config.Servers
+      $this.Servers    = $Config.Servers
       return $true
     }
     return $false
@@ -292,101 +310,106 @@ class DRAx : Logging
     }
   }
 
+  ###############################
   ##### Interaction Section #####
+  ###############################
 
   [object] EnterConsole()
   {
     do {
       [console]::clear()
-      $R0 = $this.console(@{"Select Category" = @(
-        "1: Quick Actions",
-        "2: Computer(s)",
-        "3: Distro(s)/Group(s)",
-        "4: User(s)/OrgAcct(s)",
-        "0: Return"
+      $R0 = $this.console(@{'Select Category' = @(
+        '1: Quick Actions',
+        '2: Computer(s)',
+        '3: Distro(s)/Group(s)',
+        '4: User(s)/OrgAcct(s)',
+        '5: File System Actions',
+        '0: Return'
       )}, "`n== DRAx Console ==`n", "`nDRAx > ")
       switch -regex ($R0) {
-        "^0$" {
-          return ""
+        '^0$' {
+          return ''
         }
-        "^\?$|^[Hh](elp)*$" {
+        '^\?$|^[Hh](elp)*$' {
           #ToDo: DisplayHelp
           continue
         }
-        "^1$" {
-          $R1 = $this.console(@{"Options" = @()}, $null, "`nDRAx [QuickAction] > ")
+        '^1$' {
+          $R1 = $this.console(@{'Options' = @()}, $null, "`nDRAx [QuickAction] > ")
         }
-        "^2|^[Cc]omputer(?:s*)$" {
-          $R1 = $this.console(@{"Options" = @(
-            "1: Create`tCreate AFNet Computer",
-            "2: Restore`tRecreate Computer",
-            "3: Delete`tMove Computer to recycling bin",
-            "4: Disable`tDisable Computer",
-            "5: Enable`tEnable Computer",
-            "6: Get`tGet properties for Computer",
-            "7: Edit`tEdit properties for Computer",
-            "0: Return"
+        '^2|^[Cc]omputer(?:s*)$' {
+          $R1 = $this.console(@{'Options' = @(
+            '1: Create`tCreate AFNet Computer',
+            '2: Restore`tRecreate Computer',
+            '3: Delete`tMove Computer to recycling bin',
+            '4: Disable`tDisable Computer',
+            '5: Enable`tEnable Computer',
+            '6: Get`tGet properties for Computer',
+            '7: Edit`tEdit properties for Computer',
+            '0: Return'
           )}, $null, "`nDRAx [Computer] > ")
         }
-        "^3$" {
-          $R1 = $this.console(@{"Options" = @(
-            "1: Create Group",
-            "2: Get Group",
-            "3: Edit Group",
-            "3: Get Group Member(s)",
-            "4: Set Group Member(s)",
-            "5: Get Distro Manager",
-            "6: Set Distro Manager",
-            "7: Get Distro Member(s)",
-            "8: Set Distro Member(s)",
-            "0: Return"
+        '^3$' {
+          $R1 = $this.console(@{'Options' = @(
+            '1: Create Group',
+            '2: Get Group',
+            '3: Edit Group',
+            '3: Get Group Member(s)',
+            '4: Set Group Member(s)',
+            '5: Get Distro Manager',
+            '6: Set Distro Manager',
+            '7: Get Distro Member(s)',
+            '8: Set Distro Member(s)',
+            '0: Return'
           )}, $null, "`nDRAx [Group|Distro] > ")
         }
-        "^4$" {
-          $R1 = $this.console(@{"Options" = @(
-            "1: Create User",
-            "2: Delete User",
-            "3: Get User properties",
-            "4: Edit User properties",
-            "5: Enable User",
-            "6: Disable User",
-            "7: Mirror Users",
-            "0: Return"
+        '^4$' {
+          $R1 = $this.console(@{'Options' = @(
+            '1: Create User',
+            '2: Delete User',
+            '3: Get User properties',
+            '4: Edit User properties',
+            '5: Enable User',
+            '6: Disable User',
+            '7: Mirror Users',
+            '0: Return'
           )}, $null, "`nDRAx [User] > ")
           switch -regex ($R1) {
-            "^0$" { break }
-            "^1$" {
-              [console]::writeLine("<NotImplimented>")
-            }
-            "^2$" {
-              [console]::writeLine("<NotImplimented>")
-            }
-            "^3$" {
-              return $this.getUserProperties($this.iFind("User", $null))
-            }
-            "^4$" {}
-            "^5$" {}
-            "^6$" {}
-            "^7$" {}
+            '^0$' { break }
+            '^1$' {}
+            '^2$' {}
+            '^3$' {}
+            '^4$' {}
+            '^5$' {}
+            '^6$' {}
+            '^7$' {}
           }
         }
-        "[G|g]et [U|u]ser (?<a>.*)" {
-          $r1 = $this.iFind('User', $matches.a.toString())
+        '^5$' {
+          $R1 = $this.console(@{'Options' = @(
+            '1: Analyze File System'
+          )}, $null, "`nDRAx [FSAction] > ")
+          while (![string]::isNullOrEmpty($R1)) {
+            $this.console(@{}, "Enter Search Path", "`nDRAx [FSAction] > ")
+          }
         }
-        "[G|g]et [C|c]omputer (?<a>.*)" {
-          $r1 = $this.iFind('Computer', $matches.a.toString())
+        '[G|g]et [U|u]ser (?<a>.*)' {
+          #$r1 = $this.iFind('User', $matches.a.toString())
         }
-        "[G|g]et\s[D|d]istro\s(?<D>\S*)" {
-          $DistroManager = $this.getDistroManager($this.iFind("Group", $matches.D))
+        '[G|g]et [C|c]omputer (?<a>.*)' {
+          #$r1 = $this.iFind('Computer', $matches.a.toString())
         }
-        "[N|n]ew [C|c]omputer (?<a>.*)" {
-          
+        '[G|g]et\s[D|d]istro\s(?<D>\S*)' {
+          #$DistroManager = $this.getDistroManager($this.iFind('Group', $matches.D))
+        }
+        '[N|n]ew [C|c]omputer (?<a>.*)' {
+          #ASDF
         }
       }
       [console]::readKey()
     }
     while ($true)
-    return ""
+    return ''
   }
 
   hidden [string] Console([hashtable]$inputObject, [string]$header, [string]$prompt)
@@ -555,7 +578,23 @@ class DRAx : Logging
     $this.LogLevel = $this.hLogLevel
   }
 
+  ##########################
+  #### Random Utilities ####
+  ##########################
+
+  [string] ConvertDistinguishedNameToIdentityReference([string]$distinguishedName)
+  {
+    return $this.convertDistinguishedNameToIdentityReference($distinguishedName, $this.hDomain.split('.')[0].toUpper())
+  }
+
+  [string] ConvertDistinguishedNameToIdentityReference([string]$distinguishedName, [string]$domain)
+  {
+    return [system.security.principal.ntaccount]::new($domain.toUpper(), [regex]::match($distinguishedName, 'CN=([^,]*)').Groups[1].Value)
+  }
+
+  ##########################
   ##### Search Section #####
+  ##########################
   <#
     Search Section
       Search DRA for specified object(s) by parsed string and returns DistinguishedName(s).
@@ -597,7 +636,7 @@ class DRAx : Logging
     $Splat.add('IncludeChildContainers', $true)
     $Splat.add('DRARestServer', "$($this.Server).$($this.Domain)")
     $Splat.add('ErrorAction', 'Stop')
-    $Object = $null
+    $Object = [psobject]::new()
     $Key = $Query.Keys[0] -as [string]
     $Value = $Query.Values[0] -as [string]
     switch -regex ($class.toString()) {
@@ -626,32 +665,14 @@ class DRAx : Logging
     return $Object
   }
 
-  ##### Shared Commands #####
-
-  [object] GetUserGroups([string]$identifier)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getSplat()
-      $Object = (Get-DRAUser -identifier $identifier -attributes 'MemberOf' @Splat).MemberOf `
-        | Select-Object -property 'sAMAccountName', 'GroupType', 'GroupScope', 'DistinguishedName'
-      foreach ($Group in $Object) {
-        $this.toInf("[*] $($Group.DistinguishedName)", 'GetUserGroup')
-      }
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'GetUserGroup')
-    }
-    return $Object
-  }
-
   #$DRAx.IConsole(@{'Group' = $ACL.Access.IdentityReference.Value}, "Enter Group > ", $true)
 
+  ############################
   ##### File Permissions #####
+  ############################
   <#
     ToDo:
       Show directory information w/ File Permissions and Groups mushed?
-
     Commands:
       Test if user/group has access to any children in directory.
         * $FSE = $this.getFileSystemEntries($path)
@@ -660,19 +681,22 @@ class DRAx : Logging
 
   [object] GetPermissions([string]$path)
   {
-    return $this.getPermissions($path, 'All')
+    return $this.getPermissions($path, [accesscontrolsections]::All)
   }
 
-  [object] GetPermissions([string]$path, [string]$identifier)
-  {
-    return [directorysecurity]::new($path, 'Access').Access.where({
-      $_.IdentityReference.Value -match "^.*\\$($identifier)`$|^$($identifier.replace('\','\\'))`$"
-    })
-  }
- 
   [object] GetPermissions([string]$path, [accesscontrolsections]$section)
   {
     return [directorysecurity]::new($path, $section)
+  }
+
+  [object] GetPermissions([string]$path, [string]$name)
+  {
+    $name = $name.replace('(', '\(')
+    $name = $name.replace(')', '\)')
+    return [directorysecurity]::new($path, [accesscontrolsections]::Access).Access.where({
+      #Hint: Either 'domain\user' or 'user'
+      $_.IdentityReference.Value.toString() -match "^.*\\$($name)`$|^$($name.replace('\','\\'))`$"
+    })
   }
 
   [object] SetPermissions([string]$path)
@@ -680,61 +704,67 @@ class DRAx : Logging
     return $false
   }
 
-  [bool] GrantAccess([string]$path, [string]$identifier)
+  [object] GetAccess([string]$path)
+  {
+    return $this.getPermissions($path, [accesscontrolsections]::Access).Access `
+      | Select-Object 'IdentityReference', 'AccessControlType', 'FileSystemRights', 'IsInherited', 'InheritanceFlags', 'PropagationFlags'
+  }
+
+  [bool] GrantAccess([string]$path, [string]$name)
   {
     return $false
   }
 
-  [bool] DenyAccess([string]$path, [string]$identifier)
+  [bool] DenyAccess([string]$path, [string]$name)
   {
     return $false
   }
 
-  [bool] TestAccess([string]$path, [string]$identifier)
+  [bool] TestAccess([string]$path, [string]$name)
   {
-    if (!$this.getPermissions($path, $identifier)) {
+    if (!$this.getPermissions($path, $name)) {
       return $false
     }
     return $true
   }
 
-  [bool] TestVerticalAccess([string]$path, [string]$identifier)
+  [bool] TestVerticalAccess([string]$path, [string]$name)
   {
     $Directories = $this.getAncestors($path)
     if (!$Directories) {
       return $false
     }
     foreach ($directory in $Directories) {
-      if (!$this.testAccess($directory, $identifier)) {
+      if (!$this.testAccess($directory, $name)) {
         return $false
       }
     }
     return $true
   }
 
-  [bool] TestVerticalAccess2([string]$path, [string]$identifier)
+  [bool] TestVerticalAccess2([string]$path, [string]$name)
   {
     $this.getAncestors($path).foreach({
-      if (!$this.testAccess($_, $identifier)) {
+      if (!$this.testAccess($_, $name)) {
         return $false
       }
     })
     return $true
   }
 
-  [object[]] TestHorizontalAccess([string]$path, [string]$identifier)
+  [object[]] TestHorizontalAccess([string]$path, [string]$name)
   {
     $Object = [system.collections.arraylist]::new()
     $this.getFileSystemEntries($path).foreach({
       $this.toDbg("$_", "TestHorizontalAccess")
-      $this.toDbg("$($_.FullName) - $identifier", "TestHorizontalAccess")
-      if (!$this.testAccess($_.FullName, $identifier)) {
+      $this.toDbg("$($_.FullName) - $name", "TestHorizontalAccess")
+      if (!$this.testAccess($_.FullName, $name)) {
         $this.toDbg("NoAccess", "TestHorizontalAccess")
-        $Object += "" | Select-Object @{n="Access";e={ @{"$($_.Name)" = $false} }}
+        $Object += $_ | Select-Object @{n="Access";e={ @{"$($_.Name)" = $false} }}
       }
       else {
         $this.toDbg("HasAccess", "TestHorizontalAccess")
-        $Object += "" | Select-Object @{n="Access";e={ @{"$($_.Name)" = $this.getPermissions($_.FullName, $identifier)} }}
+        $Object += $_ | Select-Object @{n="Access";e={ @{"$($_.Name)" = $this.getPermissions($_.FullName, $name)} }}
       }
     })
     return $Object
@@ -742,7 +772,7 @@ class DRAx : Logging
 
   [system.io.directoryinfo[]] GetFileSystemEntries([string]$path)
   {
-    return [system.io.directoryinfo[]][system.io.directory]::GetFileSystemEntries($path)
+    return [system.io.directoryinfo[]][system.io.directory]::getFileSystemEntries($path)
   }
 
   [object] GetAncestors([string]$path)
@@ -787,208 +817,70 @@ class DRAx : Logging
     }
   }
 
-  ##### Distribution Object(s) #####
-
-  [object] GetDistroManager([string]$identifier)
+  ###################
+  ### Permissions ###
+  ###################
+  [object] BuildAccessTree([string]$user, [string]$path)
   {
-    $Object = [psobject]::new()
+    $UsrGrps = $this.getUser($user, @('MemberOf')).MemberOf.DistinguishedName
+    $TstGrps = $this.getFileSystemPermissions($path)
+    return $true
+  }
+  
+  [object] TestLogicalAccess([string]$path, [string]$user)
+  {
+    $Groups = $this.getPermissions($path, $user)
+    return $true
+  }
+
+  [object] GetFileSystemPermissions([string]$path)
+  {
+    $Entries = $this.getFileSystemEntries($path)
+    $this.Permissions = foreach ($Entry in $Entries) {
+      $this.getPermissions($Entry.FullName) | Select-Object -excludeProperty 'Path' @{
+        n='Path';e={ $Entry.FullName};
+      }, *
+    }
+    $this.GroupedObjects = $this.Permissions.Access | Group-Object 'IdentityReference'
+    return $this.Permissions
+  }
+
+  [object] IAnalyze([string]$path)
+  {
+    $Return = [system.collections.arraylist]::new()
     try {
-      $Splat = $this.getSplat()
-      $Attributes = 'DistinguishedName', 'ManagedBy', 'IsManaged', 'ManagerCanUpdateMembers'
-      $Object = Get-DRAGroup @Splat -identifier $identifier -attributes $Attributes | Select-Object $Attributes
-      $this.toInf("[*] $identifier", 'GetDistroManager')
+      $this.setLog(0)
+      if ([string]::isNullOrWhiteSpace($path)) {
+        $path = $this.iConsole($null, "Input file system path`n > ", $false)
+      }
+      #$Permissions = $this.getFileSystemPermissions($path)      
     }
     catch {
-      $this.toErr("[!] $($_)", 'GetDistroManager')
+      $Return = [system.collections.arraylist]::new()
     }
-    return $Object
+    finally {
+      $this.resetLog()
+    }
+    return $Return
   }
 
-  [object] SetDistroManager([string]$identifier, [string]$manager) {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getSplat()
-      $Object = Set-DRAGroup @Splat -identifier $identifier -properties @{
-        'ManagedBy' = $manager
-        'ManagerCanUpdateMembers' = $true
-      }
-      $this.toInf("$($manager) > $($identifier)", 'SetDistroManager')
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'SetDistroManager')
-    }
-    return $Object
-  }
-
-  ##### Organization Object(s) #####
-
-  #TEMP
-  [object] FindOrgBox()
-  {
-    return $this.getOrgBox($this.iFind([draxclass]::User))
-  }
-
-  [object] AddOrgBox([string]$identifier, [string[]]$users)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getOrgBoxSplat($identifier)
-      $Object = Set-DRAUser @Splat -properties @{
-        'office365SendAsAdd' = $users
-        'office365SendOnBehalfAdd' = $users
-        'office365FullAccessAdd' = $users
-      }
-      foreach ($user in $users) {
-        $this.toInf("$($user.split(',')[0])", 'AddOrgBox')
-      }
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'AddOrgBox')
-    }
-    return $Object
-  }
-
-  [object] GetOrgBox([string]$identifier)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getOrgBoxSplat($identifier)
-      $Attributes = 'Office365FullAccess', 'Office365SendAs', 'Office365SendOnBehalf', 'Manager', 'DistinguishedName', 'EmailAddress'
-      $Object = Get-DRAUser @Splat -attributes $Attributes | Select-Object $Attributes
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'GetOrgBox')
-    }
-    return $Object
-  }
-
-  [object] RemoveOrgBox([string]$identifier, [string[]]$users)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getOrgBoxSplat($identifier)
-      $Object = Set-DRAUser @Splat -properties @{
-        'office365SendAsRemove' = $users
-        'office365SendOnBehalfRemove' = $users
-        'office365FullAccessRemove' = $users
-      }
-      foreach ($user in $users) {
-        $this.toInf("$($user.split(',')[0])", 'RemoveOrgBox')
-      }
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'RemoveOrgBox')
-    }
-    return $Object
-  }
-
-  hidden [object] GetOrgBoxSplat([string]$identifier)
-  {
-    $Splat = [system.collections.hashtable]::new()
-    $Splat.add('Identifier', "$($identifier)")
-    $Splat.add('Domain', "$($this.Domain)")
-    $Splat.add('DRARestServer', "$($this.Server).$($this.Domain)")
-    $Splat.add('ErrorAction', 'Stop')
-    return $Splat    
-  }
-
-  ##### Computer Object(s) #####
-
-  [object] IComputer([draxaction]$action)
-  {
-    $Object = [psobject]::new()
-
-    #Interactive computer operations.
-    #Individual methods for 'IAddComputer', 'IRemoveComputer' or 'IComputer' with [draxaction] parameter.
-    #F: iComputer with [draxaction] parameter.
-
-    return $Object
-  }
-
-  [object] AddComputer([string]$name, [hashtable]$properties)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getSplat()
-      if ($name -match '[Cc][Nn]=') {
-        $DistinguishedName = $name
-      }
-      else {
-        $DistinguishedName = "CN=$($name),$($this.Containers.Computer)"  
-      }
-      $properties.add('DistinguishedName', $DistinguishedName)
-      #$Object = Add-DRAComputer @Splat -properties $properties
-      $this.toInf("$($DistinguishedName)", 'NewComputer')
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'NewComputer')
-    }
-    return $Object
-  }
-
-  #GetComputer
-  #SetComputer
-
-  [object] RemoveComputer([string]$distinguishedName)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getSplat()
-      #$Object = Remove-DRAComputer @Splat -id $distinguishedName
-      $this.toInf("$($DistinguishedName)", 'RemoveComputer')
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'RemoveComputer')
-    }
-    return $Object
-  }
-
+  ##########################
   ##### User Object(s) #####
+  ##########################
   <# ToDo:
     Create list of common attributes, all, limited, scenario.
   #>
-
-  [object] DisableUser([string]$distinguishedName)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getSplat()
-      $Object = Disable-DRAUser @Splat -id $distinguishedName
-      $this.toInf("$($distinguishedName)", 'DisableUser')
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'DisableUser')
-      return $null
-    }
-    return $Object
-  }
-
-  [object] EnableUser([string]$distinguishedName)
-  {
-    $Object = [psobject]::new()
-    try {
-      $Splat = $this.getSplat()
-      $Object = Enable-DRAUser @Splat -id $distinguishedName
-      $this.toInf("$($distinguishedName)", 'EnableUser')
-    }
-    catch {
-      $this.toErr("[!] $($_)", 'EnableUser')
-      return $null
-    }
-    return $Object
-  }
 
   [object] GetUser([string]$distinguishedName, [string[]]$attributes)
   {
     $Object = [psobject]::new()
     try {
       $Splat = $this.getSplat()
-      $Object = Get-DRAUser @Splat -id $distinguishedName -attributes $attributes
+      $Object = Get-DRAUser @Splat -id $distinguishedName -attributes $attributes | Select-Object -property $attributes
       $this.toInf("$($distinguishedName)", 'GetUser')
     }
     catch {
       $this.toErr("[!] $($_)", 'GetUser')
-      return $null
     }
     return $Object
   }
@@ -1003,7 +895,336 @@ class DRAx : Logging
     }
     catch {
       $this.toErr("[!] $($_)", 'SetUser')
+    }
+    return $Object
+  }
+
+  [object] RemoveUser([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Remove-DRAUser @Splat -id $distinguishedName
+      $this.toInf("$($DistinguishedName)", 'RemoveUser')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'RemoveUser')
+    }
+    return $Object
+  }
+
+  [object] DisableUser([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Disable-DRAUser @Splat -id $distinguishedName
+      $this.toInf("$($distinguishedName)", 'DisableUser')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'DisableUser')
+    }
+    return $Object
+  }
+
+  [object] EnableUser([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Enable-DRAUser @Splat -id $distinguishedName
+      $this.toInf("$($distinguishedName)", 'EnableUser')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'EnableUser')
+    }
+    return $Object
+  }
+
+  [object] GetUserGroups([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = $this.getUser($distinguishedName, 'MemberOf').MemberOf `
+        | Select-Object -property 'sAMAccountName', 'GroupType', 'GroupScope', 'DistinguishedName'
+      foreach ($Group in $Object) {
+        $this.toInf("[*] $($Group.DistinguishedName)", 'GetUserGroup')
+      }
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'GetUserGroup')
+    }
+    return $Object
+  }
+
+  [object] FindOrgBox()
+  {
+    return $this.getOrgBox($this.iFind([draxclass]::User))
+  }
+
+  [object] GetOrgBox([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $CurrentAttributes = 'Office365FullAccess', 'Office365SendAs', 'Office365SendOnBehalf', 'Manager', 'Members', 'DistinguishedName', 'EmailAddress'
+      $Object = $this.getUser($distinguishedName, $CurrentAttributes) | Select-Object -property $CurrentAttributes
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'GetOrgBox')
+    }
+    return $Object
+  }
+
+  [object] SetOrgBox([string]$distinguishedName, [hashtable]$properties)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Object = $this.setUser($distinguishedName, $properties)
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'SetOrgBox')
+    }
+    return $Object
+  }
+
+  #$rights = @('SendAs','SendOnBehalf','FullAccess')
+  [object] AddToOrgBox([string]$distinguishedName, [string[]]$users, [draxemailrights[]]$rights)
+  {
+    $Object = [psobject]::new()
+    try {
+      if ($rights -gt 0) {
+        $props = @{}
+        $rights.foreach({
+          $props.add("office365$($_)Add", $users)
+        })
+      }
+      else {
+        $props = @{
+          'office365SendAsAdd' = $users
+          'office365SendOnBehalfAdd' = $users
+          'office365FullAccessAdd' = $users
+        }
+      }
+      $Object = $this.setUser($distinguishedName, $props)
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'AddToOrgBox')
+    }
+    return $Object
+  }
+
+  [object] RemoveFromOrgBox([string]$distinguishedName, [string[]]$users, [draxemailrights[]]$rights)
+  {
+    $Object = [psobject]::new()
+    try {
+      if ($rights -gt 0) {
+        $props = @{}
+        $rights.foreach({
+          $props.add("office365$($_)Remove", $users)
+        })
+      }
+      else {
+        $props = @{
+          'office365SendAsRemove' = $users
+          'office365SendOnBehalfRemove' = $users
+          'office365FullAccessRemove' = $users
+        }
+      }
+      $Object = $this.setUser($distinguishedName, $props)
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'RemoveFromOrgBox')
+    }
+    return $Object
+  }
+  
+  ###########################
+  ##### Group Object(s) #####
+  ###########################
+
+  [object] GetGroup([string]$distinguishedName, [string[]]$attributes)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Get-DRAGroup @Splat -id $distinguishedName -attributes $attributes | Select-Object -property $attributes
+      $this.toInf("$($distinguishedName)", 'GetGroup')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'GetGroup')
+    }
+    return $Object
+  }
+
+  [object] SetGroup([string]$distinguishedName, [hashtable]$properties)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Set-DRAGroup @Splat -id $distinguishedName -properties $properties
+      $this.toInf("$($distinguishedName)", 'SetGroup')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'SetGroup')
+    }
+    return $Object
+  }
+  
+  [object] GetDistro([string]$distinguishedName, [string[]]$attributes)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Object = $this.getGroup($distinguishedName, $attributes)
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'GetDistro')
+    }
+    return $Object
+  }
+
+  [object] SetDistro([string]$distinguishedName, [hashtable]$properties)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Object = $this.setGroup($distinguishedName, $properties)
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'SetDistro')
+    }
+    return $Object
+  }
+
+  [object] GetDistroManager([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $CurrentAttributes = 'DistinguishedName', 'ManagedBy', 'IsManaged', 'ManagerCanUpdateMembers', 'Members'
+      $Object = $this.getDistro($distinguishedName, $CurrentAttributes) | Select-Object -property $CurrentAttributes
+      $this.toInf("[*] $distinguishedName", 'GetDistroManager')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'GetDistroManager')
+    }
+    return $Object
+  }
+
+  [object] SetDistroManager([string]$distinguishedName, [string]$manager) {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Set-DRAGroup @Splat -id $distinguishedName -properties @{
+        'ManagedBy' = $manager
+        'ManagerCanUpdateMembers' = $true
+      }
+      $this.toInf("$($manager) > $($distinguishedName)", 'SetDistroManager')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'SetDistroManager')
+    }
+    return $Object
+  }
+  
+  ##############################
+  ##### Computer Object(s) #####
+  ##############################
+
+  [object] IComputer([draxaction]$action)
+  {
+    $Object = [psobject]::new()
+
+    #Interactive computer operations.
+    #Individual methods for 'IAddComputer', 'IRemoveComputer' or 'IComputer' with [draxaction] parameter.
+    #F: iComputer with [draxaction] parameter.
+
+    return $Object
+  }
+
+  [object] GetComputer([string]$distinguishedName, [string[]]$attributes)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Get-DRAComputer @Splat -id $distinguishedName -attributes $attributes
+      $this.toInf("$($distinguishedName)", 'GetComputer')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'GetComputer')
+    }
+    return $Object
+  }
+
+  [object] SetComputer([string]$distinguishedName, [hashtable]$properties)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Set-DRAComputer @Splat -id $distinguishedName -properties $properties
+      $this.toInf("$($distinguishedName)", 'SetComputer')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'SetComputer')
       return $null
+    }
+    return $Object
+  }
+
+  [object] AddComputer([string]$distinguishedName, [hashtable]$properties)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      if ($distinguishedName -match '[Cc][Nn]=') {
+        $DistinguishedName = $distinguishedName
+      }
+      else {
+        $DistinguishedName = "CN=$($distinguishedName),$($this.Containers.Computer)"  
+      }
+      $properties.add('DistinguishedName', $DistinguishedName)
+      #ToDo: Generated Properties for Computer Creation.
+      $Object = Add-DRAComputer @Splat -properties $properties
+      $this.toInf("$($DistinguishedName)", 'NewComputer')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'NewComputer')
+    }
+    return $Object
+  }
+
+  [object] RemoveComputer([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Splat = $this.getSplat()
+      $Object = Remove-DRAComputer @Splat -id $distinguishedName
+      $this.toInf("$($DistinguishedName)", 'RemoveComputer')
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'RemoveComputer')
+    }
+    return $Object
+  }
+
+  [object] DisableComputer([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Object = $this.setComputer($distinguishedName, @{IsDisabled = $true})
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'DisableComputer')
+    }
+    return $Object
+  }
+
+  [object] EnableComputer([string]$distinguishedName)
+  {
+    $Object = [psobject]::new()
+    try {
+      $Object = $this.setComputer($distinguishedName, @{IsDisabled = $false})
+    }
+    catch {
+      $this.toErr("[!] $($_)", 'EnableComputer')
     }
     return $Object
   }
